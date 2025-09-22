@@ -4,71 +4,71 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BasicInput } from "@/components/ui/basic-input"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, LogIn, UserPlus } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function Home() {
-  const [codigo, setCodigo] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [nombre, setNombre] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin")
   const router = useRouter()
   const { toast } = useToast()
 
-  const handleLogin = async () => {
-    console.log("Intentando login con código:", codigo)
-    console.log("Longitud del código:", codigo.length)
-    
-    if (codigo.length !== 6) {
-      toast({
-        title: "Código incompleto",
-        description: "Por favor ingresa el código de 6 dígitos completo.",
-        variant: "destructive"
-      })
-      return
-    }
-
+  const handleAuth = async () => {
     setIsLoading(true)
+    const endpoint = authMode === 'signin' ? '/api/auth/sign-in' : '/api/auth/sign-up'
+    const payload = authMode === 'signin' 
+      ? { email, password } 
+      : { email, password, nombre }
+
     try {
-      console.log("Enviando solicitud a /api/auth con:", { codigo })
-      const response = await fetch("/api/auth", {
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ codigo })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       })
 
-      console.log("Respuesta status:", response.status)
       const data = await response.json()
-      console.log("Respuesta data:", data)
 
       if (response.ok) {
-        // Guardar información del usuario en localStorage (para este ejemplo)
-        localStorage.setItem("usuario", JSON.stringify(data.usuario))
-        
-        toast({
-          title: "Bienvenido",
-          description: `Hola, ${data.usuario.nombre}!`
-        })
-
-        // Redirigir según el rol
-        if (data.usuario.rol === "admin") {
-          router.push("/admin")
+        if (authMode === 'signup') {
+          toast({
+            title: "Registro exitoso",
+            description: "Ahora puedes iniciar sesión con tus credenciales.",
+          })
+          setAuthMode('signin') // Cambiar a la pestaña de login
         } else {
-          router.push("/empleado")
+          // Para el login, Supabase maneja la sesión a través de cookies.
+          // Necesitamos obtener los datos del usuario de nuestra propia DB.
+          // Esto es una simplificación. Un sistema real usaría la sesión de Supabase.
+          toast({
+            title: "Bienvenido",
+            description: `Has iniciado sesión correctamente.`,
+          })
+          // Aquí asumimos que después del login, el usuario es redirigido
+          // por una lógica del lado del servidor o un hook de estado global.
+          // Por ahora, recargamos para que el servidor lea la cookie.
+          router.refresh() 
+          // Idealmente, aquí se redirigiría a /admin o /empleado
+          // basado en el rol del usuario que se obtendría de la sesión.
         }
       } else {
         toast({
-          title: "Error de autenticación",
-          description: data.error || "Código incorrecto",
+          title: `Error de ${authMode === 'signin' ? 'autenticación' : 'registro'}`,
+          description: data.error || "Ocurrió un error.",
           variant: "destructive"
         })
       }
     } catch (error) {
-      console.error("Error en login:", error)
+      console.error(`Error en ${authMode}:`, error)
       toast({
-        title: "Error",
-        description: "No se pudo conectar con el servidor",
+        title: "Error de red",
+        description: "No se pudo conectar con el servidor.",
         variant: "destructive"
       })
     } finally {
@@ -91,48 +91,75 @@ export default function Home() {
             Sistema de Inventario FatBoy
           </h1>
           <p className="text-gray-600">
-            Gestiona el inventario de tu restaurante FatBoy
+            Gestiona el inventario de tu restaurante
           </p>
         </div>
 
         <Card className="shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
-            <CardDescription>
-              Ingresa tu código de 6 dígitos para acceder
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-col items-center space-y-4">
-              <BasicInput
-                value={codigo}
-                onChange={setCodigo}
-                maxLength={6}
-                placeholder="Ingresa el código de 6 dígitos"
-              />
-              
-              <div className="text-sm text-gray-500 text-center">
-                <p>Administrador: 728654</p>
-                <p>Empleado: 123456</p>
-              </div>
-            </div>
-
+          <Tabs value={authMode} onValueChange={(value) => setAuthMode(value as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="signin">
+                <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión
+              </TabsTrigger>
+              <TabsTrigger value="signup">
+                <UserPlus className="mr-2 h-4 w-4" /> Registrarse
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="signin">
+              <CardHeader>
+                <CardTitle>Iniciar Sesión</CardTitle>
+                <CardDescription>Ingresa tu email y contraseña para acceder.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email-signin">Email</Label>
+                  <Input id="email-signin" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password-signin">Contraseña</Label>
+                  <Input id="password-signin" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+              </CardContent>
+            </TabsContent>
+            <TabsContent value="signup">
+              <CardHeader>
+                <CardTitle>Registrarse</CardTitle>
+                <CardDescription>Crea una nueva cuenta para empezar.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nombre-signup">Nombre Completo</Label>
+                  <Input id="nombre-signup" placeholder="Tu Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email-signup">Email</Label>
+                  <Input id="email-signup" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password-signup">Contraseña</Label>
+                  <Input id="password-signup" type="password" placeholder="Mínimo 6 caracteres" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+              </CardContent>
+            </TabsContent>
+          </Tabs>
+          
+          <div className="p-6 pt-0">
             <Button 
-              onClick={handleLogin} 
-              disabled={isLoading || codigo.length !== 6}
+              onClick={handleAuth} 
+              disabled={isLoading}
               className="w-full"
               size="lg"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verificando...
+                  Procesando...
                 </>
               ) : (
-                "Iniciar Sesión"
+                authMode === 'signin' ? 'Iniciar Sesión' : 'Crear Cuenta'
               )}
             </Button>
-          </CardContent>
+          </div>
         </Card>
 
         <div className="mt-6 text-center text-sm text-gray-500">

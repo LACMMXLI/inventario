@@ -50,11 +50,11 @@ model MovimientoInventario {
 }
 
 model Usuario {
-  id        String   @id @default(cuid())
-  codigo    String   @unique // código de 6 dígitos para autenticación
-  nombre    String
-  rol       String   // "admin" o "empleado"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id
+  email       String   @unique
+  nombre      String
+  rol         String   @default("empleado") // "admin" o "empleado"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   movimientos MovimientoInventario[]
 }
