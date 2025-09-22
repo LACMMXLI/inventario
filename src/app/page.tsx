@@ -43,19 +43,30 @@ export default function Home() {
           })
           setAuthMode('signin') // Cambiar a la pestaña de login
         } else {
-          // Para el login, Supabase maneja la sesión a través de cookies.
-          // Necesitamos obtener los datos del usuario de nuestra propia DB.
-          // Esto es una simplificación. Un sistema real usaría la sesión de Supabase.
+          // Para el login, almacenar datos del usuario y redirigir según el rol
+          const { usuario } = data
+          
+          // Almacenar datos del usuario en localStorage
+          localStorage.setItem('usuario', JSON.stringify(usuario))
+          
           toast({
             title: "Bienvenido",
-            description: `Has iniciado sesión correctamente.`,
+            description: `Has iniciado sesión correctamente como ${usuario.nombre}.`,
           })
-          // Aquí asumimos que después del login, el usuario es redirigido
-          // por una lógica del lado del servidor o un hook de estado global.
-          // Por ahora, recargamos para que el servidor lea la cookie.
-          router.refresh() 
-          // Idealmente, aquí se redirigiría a /admin o /empleado
-          // basado en el rol del usuario que se obtendría de la sesión.
+          
+          // Redirigir basado en el rol del usuario
+          if (usuario.rol === 'admin') {
+            router.push('/admin')
+          } else if (usuario.rol === 'empleado') {
+            router.push('/empleado')
+          } else {
+            // Rol no reconocido, mantener en página de inicio
+            toast({
+              title: "Advertencia",
+              description: "Rol de usuario no reconocido.",
+              variant: "destructive"
+            })
+          }
         }
       } else {
         toast({
